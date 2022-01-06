@@ -61,7 +61,6 @@ if (typeof TextEncoder === "undefined") {
 }
 
 var LibraryWebSocket = {
-  $textEncoder: new TextEncoder(),
 	$webSocketState: {
 		/*
 		 * Map of instances
@@ -138,7 +137,7 @@ var LibraryWebSocket = {
 	 */
 	WebSocketAllocate: function(url) {
 
-		var urlStr = Pointer_stringify(url);
+		var urlStr = UTF8ToString(url);
 		var id = webSocketState.lastId++;
 
 		webSocketState.instances[id] = {
@@ -159,7 +158,7 @@ var LibraryWebSocket = {
    */
   WebSocketAddSubProtocol: function(instanceId, subprotocol) {
 
-    var subprotocolStr = Pointer_stringify(subprotocol);
+    var subprotocolStr = UTF8ToString(subprotocol);
     webSocketState.instances[instanceId].subprotocols.push(subprotocolStr);
 
   },
@@ -212,7 +211,8 @@ var LibraryWebSocket = {
 				console.log("[JSLIB WebSocket] Connected.");
 
 			if (webSocketState.onOpen)
-				Runtime.dynCall('vi', webSocketState.onOpen, [ instanceId ]);
+				/* Runtime.dynCall('vi', webSocketState.onOpen, [ instanceId ]); */
+				dynCall_vi(webSocketState.onOpen, instanceId);
 
 		};
 
@@ -232,19 +232,21 @@ var LibraryWebSocket = {
 				HEAPU8.set(dataBuffer, buffer);
 
 				try {
-					Runtime.dynCall('viii', webSocketState.onMessage, [ instanceId, buffer, dataBuffer.length ]);
+					/* Runtime.dynCall('viii', webSocketState.onMessage, [ instanceId, buffer, dataBuffer.length ]); */
+					dynCall_viii (webSocketState.onMessage,  instanceId, buffer, dataBuffer.length );
 				} finally {
 					_free(buffer);
 				}
 
       } else {
-				var dataBuffer = textEncoder.encode(ev.data);
+				var dataBuffer = (new TextEncoder() ).encode(ev.data);
 
 				var buffer = _malloc(dataBuffer.length);
 				HEAPU8.set(dataBuffer, buffer);
 
 				try {
-					Runtime.dynCall('viii', webSocketState.onMessage, [ instanceId, buffer, dataBuffer.length ]);
+					/* Runtime.dynCall('viii', webSocketState.onMessage, [ instanceId, buffer, dataBuffer.length ]); */
+					dynCall_viii( webSocketState.onMessage,  instanceId, buffer, dataBuffer.length );
 				} finally {
 					_free(buffer);
 				}
@@ -266,7 +268,8 @@ var LibraryWebSocket = {
 				stringToUTF8(msg, msgBuffer, msgBytes);
 
 				try {
-					Runtime.dynCall('vii', webSocketState.onError, [ instanceId, msgBuffer ]);
+					/* Runtime.dynCall('vii', webSocketState.onError, [ instanceId, msgBuffer ]); */
+					dynCall_vii( webSocketState.onError,  instanceId, msgBuffer );
 				} finally {
 					_free(msgBuffer);
 				}
@@ -281,7 +284,8 @@ var LibraryWebSocket = {
 				console.log("[JSLIB WebSocket] Closed.");
 
 			if (webSocketState.onClose)
-				Runtime.dynCall('vii', webSocketState.onClose, [ instanceId, ev.code ]);
+				/* Runtime.dynCall('vii', webSocketState.onClose, [ instanceId, ev.code ]); */
+				dynCall_vii( webSocketState.onClose,  instanceId, ev.code );
 
 			delete instance.ws;
 
@@ -312,7 +316,7 @@ var LibraryWebSocket = {
 		if (instance.ws.readyState === 3)
 			return -5;
 
-		var reason = ( reasonPtr ? Pointer_stringify(reasonPtr) : undefined );
+		var reason = ( reasonPtr ? UTF8ToString(reasonPtr) : undefined );
 
 		try {
 			instance.ws.close(code, reason);
@@ -366,7 +370,7 @@ var LibraryWebSocket = {
 		if (instance.ws.readyState !== 1)
 			return -6;
 
-		instance.ws.send(Pointer_stringify(message));
+		instance.ws.send(UTF8ToString(message));
 
 		return 0;
 
@@ -392,5 +396,4 @@ var LibraryWebSocket = {
 };
 
 autoAddDeps(LibraryWebSocket, '$webSocketState');
-autoAddDeps(LibraryWebSocket, '$textEncoder');
 mergeInto(LibraryManager.library, LibraryWebSocket);
